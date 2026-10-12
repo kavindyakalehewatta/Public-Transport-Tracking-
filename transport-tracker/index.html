@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SL Transit Tracker – Real-Time Public Transport Sri Lanka</title>
+  <meta name="description" content="Real-time public transport tracking for buses and trains across Sri Lanka. Track live locations, plan journeys, and view routes on an interactive map." />
+  <meta name="keywords" content="Sri Lanka bus tracker, Sri Lanka train tracker, public transport, live tracking, Colombo bus, SLTB" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- App CSS -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ══════════════════════════════════════════════
+         SCREEN 1: WELCOME
+    ══════════════════════════════════════════════ -->
+    <div id="screen-welcome" class="screen active">
+      <div class="bg-anim"></div>
+      <div class="bg-grid"></div>
+
+      <div class="welcome-content">
+        <!-- Logo -->
+        <div class="logo-wrap">
+          <div class="logo-icon">🗺️</div>
+          <div class="logo-title">SL Transit<br/>Tracker</div>
+          <div class="logo-sub">Real-Time Public Transport Tracking System</div>
+          <div class="flag-badge">
+            <span>🇱🇰</span>
+            <span>SRI LANKA · LIVE FLEET MONITORING</span>
+          </div>
+        </div>
+
+        <!-- Mode selector -->
+        <div class="mode-cards">
+          <button id="btn-select-bus" class="mode-card card-bus" aria-label="Select Bus Routes">
+            <div class="mode-card-icon">🚌</div>
+            <div class="mode-card-label">Bus Routes</div>
+            <div class="mode-card-desc">SLTB & Private<br/>Inter-city &amp; Local</div>
+          </button>
+          <button id="btn-select-train" class="mode-card card-train" aria-label="Select Train Routes">
+            <div class="mode-card-icon">🚂</div>
+            <div class="mode-card-label">Train Routes</div>
+            <div class="mode-card-desc">Sri Lanka Railways<br/>All Lines</div>
+          </button>
+        </div>
+
+        <div class="welcome-footer">
+          📡 Live fleet data &nbsp;·&nbsp; 🗺️ OpenStreetMap &nbsp;·&nbsp; 🇱🇰 Sri Lanka Railways &amp; NTC
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         SCREEN 2: BUS TRACKER
+    ══════════════════════════════════════════════ -->
+    <div id="screen-bus" class="screen">
+      <div class="app-layout">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+          <!-- Header -->
+          <div class="sidebar-header">
+            <button id="bus-back" class="back-btn" aria-label="Back to home">←</button>
+            <span class="sidebar-title">Bus Routes</span>
+            <span class="mode-badge badge-bus">🚌 BUS</span>
+          </div>
+
+          <!-- Live ticker -->
+          <div class="header-ticker">
+            <div class="ticker-item">📻 <span id="ticker-1">Loading...</span></div>
+            <div class="ticker-item">•</div>
+            <div class="ticker-item"><span id="ticker-2"></span></div>
+          </div>
+
+          <!-- Body -->
+          <div class="sidebar-body">
+
+            <!-- Tabs -->
+            <div class="tab-bar">
+              <button class="tab-btn active" data-tab="browse" aria-label="Browse bus routes">📋 Browse</button>
+              <button class="tab-btn" data-tab="search" aria-label="Search by route number">🔢 Route No.</button>
+              <button class="tab-btn" data-tab="plan" aria-label="Plan your journey">🗺️ Plan Trip</button>
+              <button class="tab-btn" data-tab="settings" aria-label="Map settings">⚙️</button>
+            </div>
+
+            <!-- Tab: Browse -->
+            <div class="tab-panel active" data-panel="browse">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input id="bus-search" type="search" placeholder="Search routes, stops, towns…" autocomplete="off" />
+              </div>
+              <!-- Category chips -->
+              <div id="bus-category-filter" class="cat-filter"></div>
+              <div id="bus-route-list"></div>
+            </div>
+
+            <!-- Tab: Route No -->
+            <div class="tab-panel" data-panel="search">
+              <p style="font-size:0.82rem;color:var(--text-2);">Type a bus route number to jump directly to it.</p>
+              <div class="search-wrap">
+                <span class="search-icon">🚌</span>
+                <input id="bus-route-number-input" type="number" placeholder="e.g. 138" min="1" max="999"
+                  oninput="
+                    const v = this.value;
+                    const r = BUS_ROUTES.find(x => x.id === v);
+                    if (r) selectBusRoute(r.id);
+                    else {
+                      const p = document.getElementById('bus-route-num-result');
+                      p.innerHTML = v ? '<div class=\'empty-state\'><div class=\'empty-icon\'>🚌</div>Route ' + v + ' not found in database.</div>' : '';
+                    }" />
+              </div>
+              <div id="bus-route-num-result"></div>
+            </div>
+
+            <!-- Tab: Plan trip -->
+            <div class="tab-panel" data-panel="plan">
+              <p style="font-size:0.82rem;color:var(--text-2);line-height:1.5;">
+                Enter your start and end stop to find suitable bus routes.
+              </p>
+              <div class="jp-form">
+                <div>
+                  <div class="jp-label">🟢 From (start stop)</div>
+                  <input id="jp-from" class="jp-input" list="stops-datalist" placeholder="e.g. Pettah Bus Stand" autocomplete="off" />
+                </div>
+                <div>
+                  <div class="jp-label">🔴 To (destination stop)</div>
+                  <input id="jp-to" class="jp-input" list="stops-datalist" placeholder="e.g. Kelaniya" autocomplete="off" />
+                </div>
+                <datalist id="stops-datalist"></datalist>
+                <button id="jp-find-btn" class="btn-primary">🔍 Find Bus Routes</button>
+              </div>
+              <div id="jp-results"></div>
+            </div>
+
+            <!-- Tab: Settings (Map & API Key) -->
+            <div class="tab-panel" data-panel="settings">
+              <div class="settings-section">
+                <div class="section-label">🗺️ Map Style</div>
+                <div class="tile-switcher">
+                  <button class="tile-btn" data-tile="esri_dark">🌑 ESRI Dark<span class="free-chip">Free</span></button>
+                  <button class="tile-btn" data-tile="osm">🗺️ Street Map<span class="free-chip">Free</span></button>
+                  <button class="tile-btn" data-tile="topo">🏔️ Topo<span class="free-chip">Free</span></button>
+                  <button class="tile-btn" data-tile="esri_imagery">🛰️ Satellite<span class="free-chip">Free</span></button>
+                  <button class="tile-btn" data-tile="dark">🌙 Mapbox Dark<span class="key-chip">API Key</span></button>
+                </div>
+
+                <div class="section-label" style="margin-top:16px;">🔑 Mapbox API Key (for dark tiles)</div>
+                <p style="font-size:0.78rem;color:var(--text-3);margin-bottom:8px;line-height:1.5;">
+                  Optional. Get a free key at <strong style="color:var(--accent)">mapbox.com</strong> → Sign Up → Tokens. Paste it below for the best dark map experience.
+                </p>
+                <div style="display:flex;gap:8px;">
+                  <input id="mapbox-key-input" class="jp-input" type="password"
+                    placeholder="pk.eyJ1IjoiLi4u" style="flex:1;" />
+                  <button id="mapbox-key-save" class="btn-primary" style="width:auto;padding:10px 14px;">Save</button>
+                </div>
+
+                <div class="api-guide-card">
+                  <div class="agc-title">🚀 How to get your free Mapbox key</div>
+                  <ol class="agc-steps">
+                    <li>Go to <strong>mapbox.com</strong> and click <em>Sign Up</em></li>
+                    <li>Verify your email and log in</li>
+                    <li>On your dashboard, find <em>"Default public token"</em></li>
+                    <li>Copy the token (starts with <code>pk.eyJ1...</code>)</li>
+                    <li>Paste it above and click <em>Save</em></li>
+                  </ol>
+                  <div class="agc-note">✅ Free tier: 50,000 map loads/month – more than enough for development</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- Selected route detail panel (injected by JS) -->
+            <div id="bus-route-detail"></div>
+
+            <!-- Vehicles section (injected when live tracking starts) -->
+            <div id="bus-vehicles-section"></div>
+
+          </div>
+        </aside>
+
+        <!-- Map -->
+        <div class="map-wrap">
+          <div id="map"></div>
+          <div class="map-overlay-top">
+            <div class="map-status-pill">
+              🗺️ <span id="map-status-text">Select a route to view on map</span>
+            </div>
+            <div class="live-badge" id="live-indicator" style="display:none;">
+              <div class="pulse-dot"></div> LIVE
+            </div>
+          </div>
+          <div class="map-controls">
+            <button id="ctrl-fit" class="map-ctrl-btn" title="Fit route to screen">⊞</button>
+            <button id="ctrl-reset" class="map-ctrl-btn" title="Reset view">⟳</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         SCREEN 3: TRAIN TRACKER
+    ══════════════════════════════════════════════ -->
+    <div id="screen-train" class="screen">
+      <div class="app-layout">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <button id="train-back" class="back-btn" aria-label="Back to home">←</button>
+            <span class="sidebar-title">Train Lines</span>
+            <span class="mode-badge badge-train">🚂 RAIL</span>
+          </div>
+
+          <!-- Live ticker -->
+          <div class="header-ticker">
+            <div class="ticker-item">📻 <span id="ticker-3"></span></div>
+          </div>
+
+          <div class="sidebar-body">
+            <p style="font-size:0.82rem;color:var(--text-2);line-height:1.5;">
+              Select a Sri Lanka Railways line to view the route and live train positions.
+            </p>
+
+            <div id="train-route-list"></div>
+
+            <div class="section-divider"></div>
+
+            <!-- Selected route detail panel -->
+            <div id="train-route-detail"></div>
+
+            <!-- Vehicles section -->
+            <div id="train-vehicles-section"></div>
+          </div>
+        </aside>
+
+        <!-- Map (shared map element is moved into active screen by JS) -->
+        <div class="map-wrap" id="train-map-wrap">
+          <div id="map-placeholder"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" aria-live="polite"></div>
+
+  <!-- Data + App scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+
+  <script>
+    // Move the real map element between bus/train screens
+    const busScreen  = document.getElementById("screen-bus");
+    const trainScreen = document.getElementById("screen-train");
+    const mapWrap    = document.querySelector("#screen-bus .map-wrap");
+    const trainWrap  = document.getElementById("train-map-wrap");
+
+    // Override enterMode to also move the map container
+    const _origEnterMode = enterMode;
+    window.enterMode = function(mode) {
+      if (mode === "train") {
+        trainWrap.innerHTML = "";
+        trainWrap.appendChild(mapWrap);
+      } else {
+        const busMapContainer = busScreen.querySelector(".app-layout");
+        if (!busMapContainer.contains(mapWrap)) {
+          busMapContainer.appendChild(mapWrap);
+        }
+      }
+      _origEnterMode(mode);
+
+      // Show/hide live indicator
+      document.getElementById("live-indicator").style.display = "none";
+    };
+
+    // Show live indicator when live tracking enabled
+    const _origEnable = enableLiveTracking;
+    window.enableLiveTracking = function() {
+      _origEnable();
+      document.getElementById("live-indicator").style.display = "flex";
+    };
+
+    // Wire route number tab
+    document.getElementById("bus-route-number-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        const v = e.target.value;
+        const r = BUS_ROUTES.find(x => x.id === v);
+        if (r) {
+          selectBusRoute(r.id);
+          setTab("browse");
+        }
+      }
+    });
+  </script>
+</body>
+</html>
